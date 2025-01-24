@@ -1,0 +1,215 @@
+import cv2
+import numpy as np
+import pytesseract
+import pandas as pd
+import pytesseract
+from PIL import Image
+import matplotlib.pyplot as plt
+import csv
+
+##############################################################################################################################################
+
+# set path to tesseract
+pytesseract.pytesseract.tesseract_cmd = "C://Program Files//Tesseract-OCR//tesseract.exe"
+
+# set path to image file
+image_path = "C:/Users/49176/OneDrive/Desktop/OCR/table 2.png"
+
+# set path to store the processed image
+temp_path = "C:/Users/49176/OneDrive/Desktop/OCR/processed_images/table 2.png"
+
+# set path to csv file for results
+output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/table_2.csv"
+
+############################################################################################################################################
+
+# select tesseract engine and page segmentation mode 
+
+custom_config = r'-c preserve_interword_spaces=1x1 --oem 1 --psm 3' # psm 1,3,4,6,11,12 are good for tables
+
+# 1. --oem (OCR Engine Mode)
+
+# The --oem parameter determines which OCR engine Tesseract should use. There are four modes:
+
+#     --oem 0: Use only Tesseract's "Legacy" OCR engine. This is the older version of the engine and may be useful in certain specific cases.
+#     --oem 1: Use only the new LSTM-based OCR engine. This is the neural network-based engine, which generally provides higher accuracy.
+#     --oem 2: Combine the Legacy engine and the LSTM engine and select the best result.
+#     --oem 3: Automatically select the engine based on the type of image (default and usually the best choice).
+
+# The --psm parameter controls how Tesseract analyzes the page structure. There are 14 options:
+
+#     --psm 0: Perform only orientation and script detection (OSD).
+#     --psm 1: Automatic page segmentation with OSD.
+#     --psm 2: Automatic page segmentation, but without OSD, and without assuming a single column.
+#     --psm 3: Fully automatic page segmentation (default mode).
+#     --psm 4: Segment the image into a single line of text.
+#     --psm 5: Segment the image into a single vertical text block.
+#     --psm 6: Segment the image into a single text block (useful for simple images without special structure).
+#     --psm 7: Segment the image into a single text line containing only one line.
+#     --psm 8: Segment the image into a single word.
+#     --psm 9: Segment the image into a single word in a circular region (suitable for round texts or seals).
+#     --psm 10: Segment the image into a single character.
+#     --psm 11: Segment the image into a single block with variable text structure (useful for tables).
+#     --psm 12: Segment the image into a single text block in vertical arrangement.
+#     --psm 13: Segment the image into a single line of vertical text.
+
+##############################################################################################################################################
+
+# load image with open cv
+def load_image(image_path):
+    image = cv2.imread(image_path)
+    image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
+    if image is None:
+        print("Fehler: Bild konnte nicht geladen werden.")
+    else:
+        print("Bild erfolgreich geladen.")
+    return image
+
+# display image
+def display_image(image, title="Image"):
+    plt.figure(figsize=(12, 8))
+    plt.imshow(image, cmap='gray')
+    plt.title(title)
+    plt.axis('off')
+    plt.show()
+
+# produce a grayscale image
+def grayscale_image(image):  
+    grayscaled_image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+    return grayscaled_image
+
+# create a binary image
+def binary_image(image):
+    thresh, bin_image = cv2.threshold(image, 170, 240, cv2.THRESH_BINARY |cv2.THRESH_OTSU)  #there is also cv2.THRESH_OTSU
+    return bin_image
+
+# dilate image
+def dilate_image(image):
+    image = cv2.bitwise_not(image)
+    kernal = np.ones((2,1),np.uint8)
+    image = cv2.dilate(image, kernal, iterations = 1)
+    image = cv2.bitwise_not(image)
+    return image
+
+# erode image
+def erode_image(image):
+    image = cv2.bitwise_not(image)
+    kernal = np.ones((2,1),np.uint8)
+    image = cv2.erode(image, kernal, iterations = 1)
+    image = cv2.bitwise_not(image)
+    return image
+
+# blur image
+def blur_image(image):
+    kernal=(1,1)
+    blurred_image = cv2.GaussianBlur(image, kernal, sigmaX=0)
+    return blurred_image
+
+# remove horizontal lines 
+def remove_horizontal_lines(image):
+    image = cv2.bitwise_not(image)
+    #horizontal_kernal = cv2.getStructuringElement(cv2.MORPH_RECT,(2, 1))
+    horizontal_kernal = cv2.getStructuringElement(cv2.MORPH_RECT, (np.array(image).shape[1]//40, 1))
+    horizontal_lines = cv2.morphologyEx(image, cv2.MORPH_OPEN, horizontal_kernal)
+    no_horizontal_lines_image = cv2.subtract(image, horizontal_lines)
+    no_horizontal_lines_image = cv2.bitwise_not(no_horizontal_lines_image)
+    return no_horizontal_lines_image
+
+# remove vertical lines 
+def remove_vertical_lines(image):
+    image = cv2.bitwise_not(image)
+    #vertical_kernal = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 2))
+    vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, np.array(image).shape[1]//40))
+    vertical_lines = cv2.morphologyEx(image, cv2.MORPH_OPEN, vertical_kernel)
+    no_vertical_lines_image = cv2.subtract(image, vertical_lines)
+    no_vertical_lines_image = cv2.bitwise_not(no_vertical_lines_image)
+    return no_vertical_lines_image
+
+def split_texts_in_array(input_array):
+    return [text.split("\n") for text in input_array]
+
+# extract table by chat GPT 
+def extract_table(image,custom_config):
+    # Einstellungen
+    #custom_config = r'--oem 1 --psm 6'
+
+    # Vorverarbeitung
+    #image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    #image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                 # cv2.THRESH_BINARY, 11, 2)
+    #image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+
+    # Konturen finden
+    contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    bounding_boxes = [cv2.boundingRect(contour) for contour in contours]
+    bounding_boxes = [box for box in bounding_boxes if box[2] > 100 and box[3] > 100]  # Filter
+    bounding_boxes = sorted(bounding_boxes, key=lambda x: (x[1], x[0]))
+
+    if not bounding_boxes:
+        return []  # Leere Tabelle, wenn keine Konturen gefunden
+
+    # Gruppierung in Zeilen
+    rows = []
+    mean_height = np.mean([box[3] for box in bounding_boxes])
+    current_row = [bounding_boxes[0]]
+
+    for box in bounding_boxes[1:]:
+        if abs(box[1] - current_row[-1][1]) <= mean_height:
+            current_row.append(box)
+        else:
+            rows.append(current_row)
+            current_row = [box]
+    rows.append(current_row)
+
+    # Sortierung der Spalten
+    for row in rows:
+        row.sort(key=lambda x: x[0])
+
+    # OCR
+    table_data = []
+    for row in rows:
+        row_data = []
+        for (x, y, w, h) in row:
+            cell = image[y:y + h, x:x + w]
+            text = pytesseract.image_to_string(cell, config=custom_config)#.strip()
+            row_data.append(text)
+        table_data.append(row_data)
+
+    return table_data
+
+
+########################################################################################################################################
+
+def main(image_path,output_path,custom_config):
+    # load the image 
+    image = load_image(image_path)
+
+    #produce a gray image
+    gray_image =grayscale_image(image)
+
+    # remove the lines
+    dilated_image = dilate_image(gray_image)
+    blurred_image = blur_image(dilated_image)
+    image_without_hlines = remove_horizontal_lines(blurred_image)
+    eroded_image = erode_image(image_without_hlines)
+
+    # create a binary image
+    bin_image = binary_image(eroded_image)
+
+    # perform OCR 
+    table = extract_table(bin_image,custom_config)
+
+    # slice the results
+    table_2 = table[0]
+    table_split = split_texts_in_array(table_2)
+    print(table_split[0])
+    print(len(table_split[0]))
+    text_split=[]
+    for i in range(0,len(table_split[0])):
+        print(table_split[0][i])
+        if  table_split[0][i] != '':
+            text_split.append(table_split[0][i])       
+    return print(text_split,len(text_split))
+
+main(image_path,output_csv_path,custom_config)
+    
