@@ -7,6 +7,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import csv
 import pandas as pd
+from IPython.display import display
 
 ##############################################################################################################################################
 
@@ -14,13 +15,13 @@ import pandas as pd
 pytesseract.pytesseract.tesseract_cmd = "C://Program Files//Tesseract-OCR//tesseract.exe"
 
 # set path to image file
-image_path = "C:/Users/49176/OneDrive/Desktop/OCR/table 2.png"
+image_path = "C:/Users/49176/OneDrive/Desktop/OCR/greek_letters.png"
 
 # set path to store the processed image
 #temp_path = "C:/Users/49176/OneDrive/Desktop/OCR/processed_images/table 2.png"
 
 # set path to csv file for results
-output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/table_2.csv"
+output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/letters.csv"
 
 ############################################################################################################################################
 
@@ -189,7 +190,7 @@ def extract_table(image,custom_config):
             cell = image[y:y + h, x:x + w]
             text = pytesseract.image_to_string(cell, config=custom_config)
             col_data.append(text)
-            print(col_data)
+            #print(col_data)
         table_data.append(col_data)
 
     return table_data
@@ -232,12 +233,12 @@ def main(image_path,output_path,custom_config):
     for i in range(0,len(words)):
         if  words[i] != []:
             cleaned_words.append(words[i])
-    for i in range(0,len(cleaned_words)):
-        print(len(cleaned_words[i]))
+    #for i in range(0,len(cleaned_words)):
+        #print(len(cleaned_words[i]))
     max_length = max(len(row) for row in cleaned_words)
     padded_data = [row + [None] * (max_length - len(row)) for row in cleaned_words]
     df = pd.DataFrame(padded_data)
-    return print(df), df.to_csv(output_csv_path, index=False, header=False)
+    return display(df), df.to_csv(output_csv_path, index=False, header=False)
 
 main(image_path,output_csv_path,custom_config)
     
