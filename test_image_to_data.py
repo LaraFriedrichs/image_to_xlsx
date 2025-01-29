@@ -27,7 +27,7 @@ output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/letters.csv"
 
 # select tesseract engine and page segmentation mode 
 
-custom_config = r'-l grc+eng -c preserve_interword_spaces=1x1 --oem 3 --psm 3' # psm 1,3,4,6,11,12 are good for tables
+custom_config = r'-l grc+eng -c preserve_interword_spaces=1x1 --oem 1 --psm 3' # psm 1,3,4,6,11,12 are good for tables
 #custom_config = r' --oem 1 --psm 3'
 
 # 1. --oem (OCR Engine Mode)
@@ -128,131 +128,25 @@ def remove_vertical_lines(image):
     no_vertical_lines_image = cv2.bitwise_not(no_vertical_lines_image)
     return no_vertical_lines_image
 
-def split_texts_in_array(input_array):
-    return [text.split("\n") for text in input_array]
-
-def split_texts_in_array_2(input_array):
-    return [text.split() for text in input_array]
-
-# def split_texts_in_array_2(input_array):
-#     if not input_array:
-#         return []
-#     return [text.split() for text in input_array if isinstance(text, str)]
-
-# extract table 
-def extract_table(image,custom_config):
-
-    contours, _ = cv2.findContours(image, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-    bounding_boxes = [cv2.boundingRect(contour) for contour in contours]
-    bounding_boxes = [box for box in bounding_boxes if box[2] > 100 and box[3] > 100]  
-    bounding_boxes = sorted(bounding_boxes, key=lambda x: (x[1], x[0]))
-
-    if not bounding_boxes:
-        return []  
-    rows = []
-    mean_height = np.mean([box[3] for box in bounding_boxes])
-    current_row = [bounding_boxes[0]]
-
-    for box in bounding_boxes[1:]:
-        if abs(box[1] - current_row[-1][1]) <= mean_height:
-            current_row.append(box)
-        else:
-            rows.append(current_row)
-            current_row = [box]
-    rows.append(current_row)
-    for row in rows:
-        row.sort(key=lambda x: x[0])
-    table_data = []
-    for row in rows:
-        row_data = []
-        for (x, y, w, h) in row:
-            cell = image[y:y + h, x:x + w]
-            text = pytesseract.image_to_string(cell, config=custom_config)
-            row_data.append(text)
-            #print(row_data)
-    cols = []
-    mean_widht = np.mean([box[2] for box in bounding_boxes])
-    current_col = [bounding_boxes[0]]
-
-    for box in bounding_boxes[1:]:
-        if abs(box[1] - current_col[-1][1]) <= mean_widht:
-            current_col.append(box)
-        else:
-            cols.append(current_col)
-            current_col = [box]
-    cols.append(current_col)
-    for col in cols:
-        cols.sort(key=lambda x: x[0])
-    table_data = []
-    for col in cols:
-        col_data = []
-        for (x, y, w, h) in col:
-            cell = image[y:y + h, x:x + w]
-            text = pytesseract.image_to_string(cell, config=custom_config,lang='grc+eng')
-            col_data.append(text)
-            #print(col_data)
-        table_data.append(col_data)
-
-    return table_data
-
-def preprocess(image_path):
-    # load the image 
-    image = load_image(image_path)
-
-    #produce a gray image
-    gray_image = grayscale_image(image)
-
-    # remove the lines
-    dilated_image = dilate_image(gray_image)
-    #blurred_image = blur_image(dilated_image)
-    image_without_hlines = remove_horizontal_lines(dilated_image)
-    eroded_image = erode_image(image_without_hlines)
-    return eroded_image
+def main(image):
+    h_img,w_img =image.shape
+    #print(h_img,w_img)
+    boxes = pytesseract.image_to_data(image, config=custom_config,lang='grc + eng')
+    #print(boxes)
+    for n, box in enumerate(boxes.splitlines()):
+        if n!= 0:
+            box = box.split()
+            print(len(box))
+            if len(box) > 10:
+                print(box)
+                x,y,w,h = int(box[6]),int(box[7]),int(box[8]),int(box[9])
+                image_with_boxes = cv2.rectangle(image,(x,y),(w+x,h+y),(0,0,255),3)
+                #cv2.putText(image,box[11],(x,y),(w+x,h+y),cv2.FONT_HERSHEY_DUPLEX,3,(0,0,255))
+                return display_image(image_with_boxes)
 
 
-########################################################################################################################################
+image = load_image(image_path)
+grayscaled_image = grayscale_image(image)
+bin_image = binary_image(grayscaled_image)
 
-def main(image_path,output_path,custom_config):
-     
-    image = preprocess(image_path)
-
-    #produce a gray image
-    #gray_image = grayscale_image(image)
-
-    # remove the lines
-    dilated_image = dilate_image(image)
-    #blurred_image = blur_image(dilated_image)
-    image_without_hlines = remove_horizontal_lines(dilated_image)
-    eroded_image = erode_image(image_without_hlines)
-
-    # create a binary image
-    bin_image = binary_image(eroded_image)
-
-    # perform OCR 
-    table = extract_table(bin_image,custom_config)
-
-    # slice the results
-    table_2 = table[0]
-    table_split_0 = split_texts_in_array(table_2)
-    table_split =table_split_0[0]
-    #print(table_split[0])
-    #print(len(table_split[0]))
-    text_split=[]
-    cleaned_words =[]
-    for i in range(0,len(table_split)):
-        #print(table_split[0][i])
-        if  table_split[0][i] != '':
-            text_split.append(table_split[i])
-    words= split_texts_in_array_2(text_split) 
-    for i in range(0,len(words)):
-        if  words[i] != []:
-            cleaned_words.append(words[i])
-    #for i in range(0,len(cleaned_words)):
-        #print(len(cleaned_words[i]))
-    max_length = max(len(row) for row in cleaned_words)
-    padded_data = [row + [None] * (max_length - len(row)) for row in cleaned_words]
-    df = pd.DataFrame(padded_data)
-    return display(df), df.to_csv(output_csv_path, index=False, header=False)
-
-main(image_path,output_csv_path,custom_config)
-    
+main(bin_image)
