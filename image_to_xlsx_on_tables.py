@@ -1,11 +1,10 @@
 import cv2
+#from PIL import Image
+import pytesseract
 import numpy as np
-import pytesseract
 import pandas as pd
-import pytesseract
-from PIL import Image
 import matplotlib.pyplot as plt
-import csv
+#from IPython.display import display
 
 ##############################################################################################################################################
 
@@ -13,19 +12,17 @@ import csv
 pytesseract.pytesseract.tesseract_cmd = "C://Program Files//Tesseract-OCR//tesseract.exe"
 
 # set path to image file
-image_path = "C:/Users/49176/OneDrive/Desktop/OCR/table 2.png"
+image_path = "C:/Users/49176/OneDrive/Desktop/OCR/greek_letters.png"
 
-# set path to store the processed image
-temp_path = "C:/Users/49176/OneDrive/Desktop/OCR/processed_images/table 2.png"
-
-# set path to csv file for results
-output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/table_2.csv"
+# set path to xlsx file for results
+output_excel_path = "C:/Users/49176/OneDrive/Desktop/OCR/letters.xlsx"
 
 ############################################################################################################################################
 
 # select tesseract engine and page segmentation mode 
 
-custom_config = r'-c preserve_interword_spaces=1x1 --oem 1 --psm 3' # psm 1,3,4,6,11,12 are good for tables
+custom_config = r'-l grc+eng -c preserve_interword_spaces=1x1 --oem 3 --psm 3' # psm 1,3,4,6,11,12 are good for tables
+#custom_config = r' --oem 1 --psm 3'
 
 # 1. --oem (OCR Engine Mode)
 
@@ -54,7 +51,6 @@ custom_config = r'-c preserve_interword_spaces=1x1 --oem 1 --psm 3' # psm 1,3,4,
 #     --psm 13: Segment the image into a single line of vertical text.
 
 ##############################################################################################################################################
-
 # load image with open cv
 def load_image(image_path):
     image = cv2.imread(image_path)
@@ -80,7 +76,7 @@ def grayscale_image(image):
 
 # create a binary image
 def binary_image(image):
-    thresh, bin_image = cv2.threshold(image, 170, 240, cv2.THRESH_BINARY |cv2.THRESH_OTSU)  #there is also cv2.THRESH_OTSU
+    thresh, bin_image = cv2.threshold(image, 170, 240, cv2.THRESH_BINARY |cv2.THRESH_OTSU)  
     return bin_image
 
 # dilate image
@@ -125,76 +121,60 @@ def remove_vertical_lines(image):
     no_vertical_lines_image = cv2.bitwise_not(no_vertical_lines_image)
     return no_vertical_lines_image
 
-def split_texts_in_array(input_array):
-    return [text.split("\n") for text in input_array]
-
-# extract table 
-def extract_table(image,custom_config):
-
-    contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    bounding_boxes = [cv2.boundingRect(contour) for contour in contours]
-    bounding_boxes = [box for box in bounding_boxes if box[2] > 100 and box[3] > 100]  
-    bounding_boxes = sorted(bounding_boxes, key=lambda x: (x[1], x[0]))
-
-    if not bounding_boxes:
-        return []  
-    rows = []
-    mean_height = np.mean([box[3] for box in bounding_boxes])
-    current_row = [bounding_boxes[0]]
-
-    for box in bounding_boxes[1:]:
-        if abs(box[1] - current_row[-1][1]) <= mean_height:
-            current_row.append(box)
-        else:
-            rows.append(current_row)
-            current_row = [box]
-    rows.append(current_row)
-    for row in rows:
-        row.sort(key=lambda x: x[0])
-    table_data = []
-    for row in rows:
-        row_data = []
-        for (x, y, w, h) in row:
-            cell = image[y:y + h, x:x + w]
-            text = pytesseract.image_to_string(cell, config=custom_config)
-            row_data.append(text)
-        table_data.append(row_data)
-
-    return table_data
-
-
-########################################################################################################################################
-
-def main(image_path,output_path,custom_config):
-    # load the image 
-    image = load_image(image_path)
-
-    #produce a gray image
-    gray_image =grayscale_image(image)
-
+def extract_text_to_dataframe(image_path,custom_config):
+    # load image
+    image = cv2.imread(image_path)
+    #create a gray image
+    gray_image = grayscale_image(image)
     # remove the lines
     dilated_image = dilate_image(gray_image)
-    blurred_image = blur_image(dilated_image)
-    image_without_hlines = remove_horizontal_lines(blurred_image)
+    #blurred_image = blur_image(dilated_image)
+    image_without_hlines = remove_horizontal_lines(dilated_image)
     eroded_image = erode_image(image_without_hlines)
-
-    # create a binary image
+    #create binary image
     bin_image = binary_image(eroded_image)
+    # OCR
+    ocr_data = pytesseract.image_to_data(bin_image, config=custom_config)
+    # store results in a dataframe
+    ocr_rows = []
+    for n, row in enumerate(ocr_data.splitlines()):
+        if n != 0:
+            row_data = row.split()
+            if len(row_data) == 12:
+                x, y, w, h, text = int(row_data[6]), int(row_data[7]), int(row_data[8]), int(row_data[9]), row_data[11]
+                if text.strip():  # Leere Ergebnisse ignorieren
+                    ocr_rows.append({"Text": text, "x": x, "y": y, "Width": w, "Height": h})
+    df = pd.DataFrame(ocr_rows)
+    # define columns
+    df = df.sort_values(by="x")
+    threshold_x = 20  
+    column_groups = []
+    current_group = []
+    last_x = -1
+    for _, row in df.iterrows():
+        if last_x == -1 or abs(row["x"] - last_x) <= threshold_x:
+            current_group.append(row)
+        else:
+            column_groups.append(pd.DataFrame(current_group))
+            current_group = [row]
+        last_x = row["x"]
+    if current_group:
+        column_groups.append(pd.DataFrame(current_group))
+    # sort text in columns to reproduce the rows
+    sorted_columns = []
+    for col_df in column_groups:
+        col_df_sorted = col_df.sort_values(by="y").reset_index(drop=True)
+        sorted_columns.append(col_df_sorted["Text"])
+    # store results in a DataFrame
+    table_df = pd.concat(sorted_columns, axis=1).fillna("")
+    table_df.columns = [f"column_{i+1}" for i in range(len(sorted_columns))]
+    return table_df
 
-    # perform OCR 
-    table = extract_table(bin_image,custom_config)
+def main(image_path, output_excel_path,custom_config):
+    # custom_config = custom_config = r'-l grc+eng -c preserve_interword_spaces=1x1 --oem 3 --psm 3' 
+    table_df = extract_text_to_dataframe(image_path,custom_config)
+    print(table_df)
+    table_df.to_excel(output_excel_path)
+    print(f"Saved file as {output_excel_path}")
 
-    # slice the results
-    table_2 = table[0]
-    table_split = split_texts_in_array(table_2)
-    print(table_split[0])
-    print(len(table_split[0]))
-    text_split=[]
-    for i in range(0,len(table_split[0])):
-        print(table_split[0][i])
-        if  table_split[0][i] != '':
-            text_split.append(table_split[0][i])       
-    return print(text_split,len(text_split))
-
-main(image_path,output_csv_path,custom_config)
-    
+main(image_path, output_excel_path,custom_config)

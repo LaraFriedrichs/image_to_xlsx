@@ -21,7 +21,7 @@ image_path = "C:/Users/49176/OneDrive/Desktop/OCR/greek_letters.png"
 #temp_path = "C:/Users/49176/OneDrive/Desktop/OCR/processed_images/table 2.png"
 
 # set path to csv file for results
-output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/letters.csv"
+output_excel_path = "C:/Users/49176/OneDrive/Desktop/OCR/letters.xlsx"
 
 ############################################################################################################################################
 
@@ -138,12 +138,119 @@ def main(image_path,custom_config):
     bin_image = binary_image(eroded_image)
     h_img,w_img =bin_image.shape
     boxes = pytesseract.image_to_data(bin_image, config=custom_config,lang='grc + eng')
+    mean_height = np.mean([box[9] for box in boxes])
+    rows = []
     for n, box in enumerate(boxes.splitlines()):
         if n != 0:
             box = box.split()
             if len(box) == 12:
                 x,y,w,h = int(box[6]),int(box[7]),int(box[8]),int(box[9])
                 image_with_boxes = cv2.rectangle(image,(x,y),(w+x,h+y),(0,0,255),1)
+            if abs(box[9] - current_row[-1][1]) <= mean_height:
+                current_row.append(box)
+            else:
+                rows.append(current_row)
+                current_row = [box]
+                rows.append(current_row)
     return display_image(image_with_boxes)
 
-main(image_path,custom_config)
+def main_2(image_path, output_csv_path):
+    # Bild laden und vorbereiten
+    image = load_image(image_path)
+    grayscaled_image = grayscale_image(image)
+    bin_image = binary_image(grayscaled_image)
+
+    # OCR-Erkennung mit Positionsdaten
+    boxes = pytesseract.image_to_data(bin_image, config=custom_config)
+
+    # Daten für den DataFrame sammeln
+    data = []
+
+    for n, box in enumerate(boxes.splitlines()):
+        if n != 0:  # Skip header line
+            box_data = box.split()
+            if len(box_data) == 12:
+                # Extrahiere Wort und Positionen
+                x, y, w, h, text = int(box_data[6]), int(box_data[7]), int(box_data[8]), int(box_data[9]), box_data[11]
+                data.append({"Text": text, "x": x, "y": y, "Width": w, "Height": h})
+
+    # DataFrame erstellen und nach y und x sortieren
+    df = pd.DataFrame(data)
+    df = df.sort_values(by=["y", "x"]).reset_index(drop=True)
+    display(df)
+
+    # CSV-Datei speichern
+    df.to_excel(output_excel_path, index=False)
+
+    print(f"CSV exportiert nach: {output_csv_path}")
+
+
+
+def image_to_table(image_path, output_excel_path):
+    # Bild laden und verarbeiten
+    image = load_image(image_path)
+    grayscaled_image = grayscale_image(image)
+    bin_image = binary_image(grayscaled_image)
+
+    # OCR ausführen
+    boxes = pytesseract.image_to_data(bin_image, config=custom_config)
+
+    # OCR-Daten sammeln
+    data = []
+    for n, box in enumerate(boxes.splitlines()):
+        if n != 0:
+            box_data = box.split()
+            if len(box_data) == 12:
+                x, y, w, h, text = int(box_data[6]), int(box_data[7]), int(box_data[8]), int(box_data[9]), box_data[11]
+                data.append({"Text": text, "x": x, "y": y, "Width": w, "Height": h})
+
+    # DataFrame erstellen und nach y und x sortieren
+    df = pd.DataFrame(data)
+    df = df.sort_values(by=["x"]).reset_index(drop=True)
+
+    # Clustering der Zeilen basierend auf y-Werten
+    row_clusters = []
+    threshold_y = 35 # Schwellenwert für y-Koordinaten (abhängig vom Bild)
+
+    current_row = []
+    last_y = None
+
+    for _, row in df.iterrows():
+        if last_y is None or abs(row["y"] - last_y) <= threshold_y:
+            current_row.append(row)
+        else:
+            row_clusters.append(current_row)
+            current_row = [row]
+        last_y = row["y"]
+
+    if current_row:
+        row_clusters.append(current_row)
+
+    # DataFrame für tabellarische Struktur erstellen
+    table_data = []
+
+    for row_cluster in row_clusters:
+        row_text = []
+        last_x = 0
+        threshold_x = 70 # Schwellenwert für Spalten (abhängig vom Textabstand)
+
+        for item in row_cluster:
+            # Füge Platzhalter ein, wenn der Abstand zu groß ist
+            while item["x"] > last_x + threshold_x:
+                row_text.append(np.nan)
+                last_x += threshold_x
+
+            row_text.append(item["Text"])
+            last_x = item["x"] + item["Width"]
+
+        table_data.append(row_text)
+
+    # DataFrame erstellen und NaN auffüllen
+    table_df = pd.DataFrame(table_data).fillna("")
+    display(table_df)
+    # Excel speichern
+    #table_df.to_excel(output_excel_path, index=False, header=False)
+
+    #print(f"Excel-Datei erfolgreich unter {output_excel_path} gespeichert.")
+
+image_to_table(image_path,output_excel_path)
