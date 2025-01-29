@@ -27,7 +27,7 @@ output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/letters.csv"
 
 # select tesseract engine and page segmentation mode 
 
-custom_config = r'-l grc+eng -c preserve_interword_spaces=1x1 --oem 1 --psm 3' # psm 1,3,4,6,11,12 are good for tables
+custom_config = r'-l grc+eng -c preserve_interword_spaces=1x1 --oem 3 --psm 3' # psm 1,3,4,6,11,12 are good for tables
 #custom_config = r' --oem 1 --psm 3'
 
 # 1. --oem (OCR Engine Mode)
@@ -128,25 +128,22 @@ def remove_vertical_lines(image):
     no_vertical_lines_image = cv2.bitwise_not(no_vertical_lines_image)
     return no_vertical_lines_image
 
-def main(image):
-    h_img,w_img =image.shape
-    #print(h_img,w_img)
-    boxes = pytesseract.image_to_data(image, config=custom_config,lang='grc + eng')
-    #print(boxes)
+def main(image_path):
+    image = load_image(image_path)
+    grayscaled_image = grayscale_image(image)
+    dilated_image = dilate_image(grayscaled_image)
+    #blurred_image = blur_image(dilated_image)
+    image_without_hlines = remove_horizontal_lines(dilated_image)
+    eroded_image = erode_image(image_without_hlines)
+    bin_image = binary_image(eroded_image)
+    h_img,w_img =bin_image.shape
+    boxes = pytesseract.image_to_data(bin_image, config=custom_config,lang='grc + eng')
     for n, box in enumerate(boxes.splitlines()):
-        if n!= 0:
+        if n != 0:
             box = box.split()
-            print(len(box))
-            if len(box) > 10:
-                print(box)
+            if len(box) == 12:
                 x,y,w,h = int(box[6]),int(box[7]),int(box[8]),int(box[9])
-                image_with_boxes = cv2.rectangle(image,(x,y),(w+x,h+y),(0,0,255),3)
-                #cv2.putText(image,box[11],(x,y),(w+x,h+y),cv2.FONT_HERSHEY_DUPLEX,3,(0,0,255))
-                return display_image(image_with_boxes)
+                image_with_boxes = cv2.rectangle(image,(x,y),(w+x,h+y),(0,0,255),1)
+    return display_image(image_with_boxes)
 
-
-image = load_image(image_path)
-grayscaled_image = grayscale_image(image)
-bin_image = binary_image(grayscaled_image)
-
-main(bin_image)
+main(image_path)
