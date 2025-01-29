@@ -128,7 +128,7 @@ def remove_vertical_lines(image):
     no_vertical_lines_image = cv2.bitwise_not(no_vertical_lines_image)
     return no_vertical_lines_image
 
-def main(image_path):
+def main(image_path,custom_config):
     image = load_image(image_path)
     grayscaled_image = grayscale_image(image)
     dilated_image = dilate_image(grayscaled_image)
@@ -146,4 +146,4 @@ def main(image_path):
                 image_with_boxes = cv2.rectangle(image,(x,y),(w+x,h+y),(0,0,255),1)
     return display_image(image_with_boxes)
 
-main(image_path)
+main(image_path,custom_config)
