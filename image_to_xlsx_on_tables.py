@@ -1,28 +1,62 @@
 import cv2
-#from PIL import Image
 import pytesseract
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-#from IPython.display import display
+from functions import load_image
+from functions import display_image
+from functions import grayscale_image
+from functions import dilate_image
+from functions import erode_image
+from functions import blur_image
+from functions import binary_image
+from functions import remove_horizontal_lines
+from functions import remove_vertical_lines
 
 ##############################################################################################################################################
 
-# set path to tesseract
+# Changes
+
+# 1. set path to image file
+image_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/imagees/.png"
+
+# 2. set path to your xlsx file for results
+output_excel_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/.xlsx"
+output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/.csv"
+
+# 3. set up tesseract
 pytesseract.pytesseract.tesseract_cmd = "C://Program Files//Tesseract-OCR//tesseract.exe"
 
-# set path to image file
-image_path = "C:/Users/49176/OneDrive/Desktop/OCR/greek_letters.png"
+# 4. set x threshold for col seperation
+#threshold_x = 22
+# threshold_x=20
+# threshold_y=16
+#threshold_x=24
+#threshold_y=18
+threshold_x=30
+threshold_y=10
+# threshold_x=20
+# threshold_y=15
 
-# set path to xlsx file for results
-output_excel_path = "C:/Users/49176/OneDrive/Desktop/OCR/letters.xlsx"
+# 5. set thresh1 and thresh 2 
+thresh1=160
+thresh2=250
+# thresh1=470
+# thresh2=550
 
-############################################################################################################################################
+# 6. set the thresholding type
+threshtype = cv2.THRESH_BINARY |cv2.THRESH_OTSU
+#threshtype = cv2.THRESH_OTSU
+#threshtype = cv2.THRESH_BINARY 
 
-# select tesseract engine and page segmentation mode 
+# 7. select tesseract engine and page segmentation mode 
 
-custom_config = r'-l grc+eng -c preserve_interword_spaces=1x1 --oem 3 --psm 3' # psm 1,3,4,6,11,12 are good for tables
+#custom_config = r'-l grc+eng -c preserve_interword_spaces=1x1 --oem 3 --psm 1' # psm 1,3,4,6,11,12 are good for tables
+#custom_config = r'-l grc+eng --oem 3 --psm 3' # psm 1,3,4,6,11,12 are good for tables
 #custom_config = r' --oem 1 --psm 3'
+#custom_config = r'--oem 3 --psm 6'
+custom_config = r'--oem 3 --psm 12 -c tessedit_char_whitelist="0123456789⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZαβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ+--_*" ""\t""\n"/=()[]{}\~.,:;<>"'
+
 
 # 1. --oem (OCR Engine Mode)
 
@@ -49,132 +83,163 @@ custom_config = r'-l grc+eng -c preserve_interword_spaces=1x1 --oem 3 --psm 3' #
 #     --psm 11: Segment the image into a single block with variable text structure (useful for tables).
 #     --psm 12: Segment the image into a single text block in vertical arrangement.
 #     --psm 13: Segment the image into a single line of vertical text.
+####################################################################################################################################
+# image preprocessing
 
-##############################################################################################################################################
-# load image with open cv
-def load_image(image_path):
-    image = cv2.imread(image_path)
-    image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
-    if image is None:
-        print("Fehler: Bild konnte nicht geladen werden.")
+image = load_image(image_path)
+gray_image = grayscale_image(image)
+#dilated_image = dilate_image(gray_image)
+#blurred_image = blur_image(dilated_image)
+image_without_hlines = remove_horizontal_lines(gray_image)
+#eroded_image = erode_image(image_without_hlines)
+bin_image = binary_image(image_without_hlines,thresh1,thresh2,threshtype)
+#bin_image = binary_image(gray_image,thresh1,thresh2,threshtype)
+
+# OCR 
+
+ocr_data = pytesseract.image_to_data(bin_image, config=custom_config)
+rows = []
+# for n, row in enumerate(ocr_data.splitlines()):
+#     if n == 0:
+#         continue  # Header-Zeile überspringen
+#     row_data = row.split()
+#     if len(row_data) == 12:
+#         x, y, w, h, text = map(int, row_data[6:10]) + [row_data[11]]
+#         if text.strip():
+#             rows.append({"Text": text, "x": x, "y": y, "Width": w, "Height": h})
+
+for n, row in enumerate(ocr_data.splitlines()):
+  if n != 0:
+    row_data = row.split()
+    if len(row_data) == 12:
+        x, y, w, h, text = int(row_data[6]), int(row_data[7]), int(row_data[8]), int(row_data[9]), row_data[11]
+        if text.strip():  # Leere Ergebnisse ignorieren
+            rows.append({"Text": text, "x": x, "y": y, "Width": w, "Height": h})
+
+df = pd.DataFrame(rows)
+df = df.sort_values(by="x")
+column_groups = []
+current_group = []
+last_x = -1
+
+# Gruppiere Spalten anhand der x-Werte
+for _, row in df.iterrows():
+    if last_x == -1 or abs(row["x"] - last_x) <= threshold_x:
+        current_group.append(row)
     else:
-        print("Bild erfolgreich geladen.")
-    return image
-
-# display image
-def display_image(image, title="Image"):
-    plt.figure(figsize=(12, 8))
-    plt.imshow(image, cmap='gray')
-    plt.title(title)
-    plt.axis('off')
-    plt.show()
-
-# produce a grayscale image
-def grayscale_image(image):  
-    grayscaled_image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-    return grayscaled_image
-
-# create a binary image
-def binary_image(image):
-    thresh, bin_image = cv2.threshold(image, 170, 240, cv2.THRESH_BINARY |cv2.THRESH_OTSU)  
-    return bin_image
-
-# dilate image
-def dilate_image(image):
-    image = cv2.bitwise_not(image)
-    kernal = np.ones((2,1),np.uint8)
-    image = cv2.dilate(image, kernal, iterations = 1)
-    image = cv2.bitwise_not(image)
-    return image
-
-# erode image
-def erode_image(image):
-    image = cv2.bitwise_not(image)
-    kernal = np.ones((2,1),np.uint8)
-    image = cv2.erode(image, kernal, iterations = 1)
-    image = cv2.bitwise_not(image)
-    return image
-
-# blur image
-def blur_image(image):
-    kernal=(1,1)
-    blurred_image = cv2.GaussianBlur(image, kernal, sigmaX=0)
-    return blurred_image
-
-# remove horizontal lines 
-def remove_horizontal_lines(image):
-    image = cv2.bitwise_not(image)
-    #horizontal_kernal = cv2.getStructuringElement(cv2.MORPH_RECT,(2, 1))
-    horizontal_kernal = cv2.getStructuringElement(cv2.MORPH_RECT, (np.array(image).shape[1]//40, 1))
-    horizontal_lines = cv2.morphologyEx(image, cv2.MORPH_OPEN, horizontal_kernal)
-    no_horizontal_lines_image = cv2.subtract(image, horizontal_lines)
-    no_horizontal_lines_image = cv2.bitwise_not(no_horizontal_lines_image)
-    return no_horizontal_lines_image
-
-# remove vertical lines 
-def remove_vertical_lines(image):
-    image = cv2.bitwise_not(image)
-    #vertical_kernal = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 2))
-    vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, np.array(image).shape[1]//40))
-    vertical_lines = cv2.morphologyEx(image, cv2.MORPH_OPEN, vertical_kernel)
-    no_vertical_lines_image = cv2.subtract(image, vertical_lines)
-    no_vertical_lines_image = cv2.bitwise_not(no_vertical_lines_image)
-    return no_vertical_lines_image
-
-def extract_text_to_dataframe(image_path,custom_config):
-    # load image
-    image = cv2.imread(image_path)
-    #create a gray image
-    gray_image = grayscale_image(image)
-    # remove the lines
-    dilated_image = dilate_image(gray_image)
-    #blurred_image = blur_image(dilated_image)
-    image_without_hlines = remove_horizontal_lines(dilated_image)
-    eroded_image = erode_image(image_without_hlines)
-    #create binary image
-    bin_image = binary_image(eroded_image)
-    # OCR
-    ocr_data = pytesseract.image_to_data(bin_image, config=custom_config)
-    # store results in a dataframe
-    ocr_rows = []
-    for n, row in enumerate(ocr_data.splitlines()):
-        if n != 0:
-            row_data = row.split()
-            if len(row_data) == 12:
-                x, y, w, h, text = int(row_data[6]), int(row_data[7]), int(row_data[8]), int(row_data[9]), row_data[11]
-                if text.strip():  # Leere Ergebnisse ignorieren
-                    ocr_rows.append({"Text": text, "x": x, "y": y, "Width": w, "Height": h})
-    df = pd.DataFrame(ocr_rows)
-    # define columns
-    df = df.sort_values(by="x")
-    threshold_x = 20  
-    column_groups = []
-    current_group = []
-    last_x = -1
-    for _, row in df.iterrows():
-        if last_x == -1 or abs(row["x"] - last_x) <= threshold_x:
-            current_group.append(row)
-        else:
-            column_groups.append(pd.DataFrame(current_group))
-            current_group = [row]
-        last_x = row["x"]
-    if current_group:
         column_groups.append(pd.DataFrame(current_group))
-    # sort text in columns to reproduce the rows
-    sorted_columns = []
-    for col_df in column_groups:
-        col_df_sorted = col_df.sort_values(by="y").reset_index(drop=True)
-        sorted_columns.append(col_df_sorted["Text"])
-    # store results in a DataFrame
-    table_df = pd.concat(sorted_columns, axis=1).fillna("")
-    table_df.columns = [f"column_{i+1}" for i in range(len(sorted_columns))]
-    return table_df
+        current_group = [row]
+    last_x = row["x"]
 
-def main(image_path, output_excel_path,custom_config):
-    # custom_config = custom_config = r'-l grc+eng -c preserve_interword_spaces=1x1 --oem 3 --psm 3' 
-    table_df = extract_text_to_dataframe(image_path,custom_config)
-    print(table_df)
-    table_df.to_excel(output_excel_path)
-    print(f"Saved file as {output_excel_path}")
+if current_group:
+    column_groups.append(pd.DataFrame(current_group))
+# Erstelle eine Liste aller einzigartigen y-Werte für Zeilenabgleich
+all_y_values = sorted(set(df["y"]))
+# Fülle die Spalten so, dass leere Felder nicht zu Verschiebungen führen
+aligned_columns = []
+for col_df in column_groups:
+    col_df = col_df.sort_values(by="y").reset_index(drop=True)
+    aligned_col = []
+    
+    # Finde die nächstgelegenen y-Werte und ordne Text den passenden Zeilen zu
+    for y in all_y_values:
+        matching_texts = col_df[(col_df["y"] >= y - threshold_y) & (col_df["y"] <= y + threshold_y)]
+        aligned_col.append(matching_texts["Text"].iloc[0] if not matching_texts.empty else "")
+    aligned_columns.append(aligned_col)
+# Baue DataFrame mit ausgerichteten Zeilen auf
+table_df = pd.DataFrame(aligned_columns).T.fillna("")
+#new_table_df = table_df.loc[df.shift() != table_df].dropna().reset_index(drop=True)
+new_table_df = table_df.loc[(table_df != table_df.shift()).any(axis=1)].reset_index(drop=True)
 
-main(image_path, output_excel_path,custom_config)
+print(new_table_df)
+new_table_df.to_excel(output_excel_path)
+print(f"Saved file as {output_excel_path}")
+
+new_table_df.to_csv(output_csv_path)
+print(f"Saved file as {output_csv_path}")
+
+############# simple OCR ############
+
+# # OCR
+# ocr_data = pytesseract.image_to_data(bin_image, config=custom_config)
+# # store results in a dataframe
+# ocr_rows = []
+# for n, row in enumerate(ocr_data.splitlines()):
+#     if n != 0:
+#         row_data = row.split()
+#         if len(row_data) == 12:
+#             x, y, w, h, text = int(row_data[6]), int(row_data[7]), int(row_data[8]), int(row_data[9]), row_data[11]
+#             if text.strip():  # Leere Ergebnisse ignorieren
+#                 ocr_rows.append({"Text": text, "x": x, "y": y, "Width": w, "Height": h})
+# df = pd.DataFrame(ocr_rows)
+# # define columns
+# df = df.sort_values(by="x")
+# column_groups = []
+# current_group = []
+# last_x = -1
+# for _, row in df.iterrows():
+#     if last_x == -1 or abs(row["x"] - last_x) <= threshold_x:
+#         current_group.append(row)
+#     else:
+#         column_groups.append(pd.DataFrame(current_group))
+#         current_group = [row]
+#     last_x = row["x"]
+# if current_group:
+#     column_groups.append(pd.DataFrame(current_group))
+# # sort text in columns to reproduce the rows
+# sorted_columns = []
+# for col_df in column_groups:
+#     col_df_sorted = col_df.sort_values(by="y").reset_index(drop=True)
+#     sorted_columns.append(col_df_sorted["Text"])
+# # store results in a DataFrame
+# table_df = pd.concat(sorted_columns, axis=1).fillna("")
+# table_df.columns = [f"column_{i+1}" for i in range(len(sorted_columns))]
+# print(table_df)
+# table_df.to_excel(output_excel_path)
+# print(f"Saved file as {output_excel_path}")
+
+################################# different approach #################################
+
+# """Führt OCR aus und speichert Ergebnisse mit Positionen in einem DataFrame."""
+# ocr_data = pytesseract.image_to_data(bin_image, config=custom_config)
+# rows = []
+# for n, row in enumerate(ocr_data.splitlines()):
+#   if n != 0:
+#      row_data = row.split("\t")
+#      #print(row_data)
+#      if len(row_data) == 12:
+#         x, y, w, h, text = int(row_data[6]), int(row_data[7]), int(row_data[8]), int(row_data[9]), row_data[11]
+#         if text.strip():
+#             rows.append({"Text": text, "x": x, "y": y, "Width": w, "Height": h})
+# df=pd.DataFrame(rows)
+
+# # #for i in range(1,len(df)):
+# # if df["Height"].item < 10:
+# #    df.drop()
+# # print(df)
+# """Richtet erkannte Wörter in einer Tabelle aus, sodass Spalten und Zeilen korrekt ausgerichtet sind.
+#    Mehrfacheinträge in derselben Spalte werden zusammengefasst."""
+
+# # **1. Einzigartige x- und y-Werte sammeln**
+# unique_x_values = sorted(set(df["x"]))
+# unique_y_values = sorted(set(df["y"]))
+# # **2. Erstelle ein leeres Raster für die Tabelle**
+# aligned_data = {y: {x: "" for x in unique_x_values} for y in unique_y_values}
+# # **3. Füge erkannte Wörter in das Raster ein (nächstgelegene x- und y-Werte)**
+# for _, row in df.iterrows():
+#     closest_y = min(unique_y_values, key=lambda y: abs(y - row["y"]))
+#     closest_x = min(unique_x_values, key=lambda x: abs(x - row["x"]))
+    
+#     # Falls in der Zelle schon ein Wert existiert, neuen Wert anhängen
+#     if aligned_data[closest_y][closest_x]:
+#         aligned_data[closest_y][closest_x] += " " + row["Text"]  # Trennzeichen " "
+#     else:
+#         aligned_data[closest_y][closest_x] = row["Text"]
+# # **4. Erstelle die Tabelle als DataFrame**
+# aligned_rows = []
+# for y in unique_y_values:
+#     aligned_rows.append([aligned_data[y][x] for x in unique_x_values])
+# table_df = pd.DataFrame(aligned_rows, columns=[f"column_{i+1}" for i in range(len(unique_x_values))])
+# print(table_df.dropna())
+
+

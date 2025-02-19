@@ -1,6 +1,3 @@
-new_table_ocr.py
-Copy Preprocessing with open cv copy.ipynb
-Chat.py
-Chat2.py
-test_image_to_data.py
-test_table_ex.py
+additional_scripts/
+images/
+results/
