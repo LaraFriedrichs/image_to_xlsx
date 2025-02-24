@@ -18,11 +18,11 @@ from functions import remove_vertical_lines
 # Changes
 
 # 1. set path to image file
-image_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/.png"
+image_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/3.5_no_notes.png"
 
 # 2. set path to your xlsx file for results
-output_excel_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/.xlsx"
-output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/.csv"
+output_excel_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/3.5_no_notes.xlsx"
+output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/3.5_no_notes.csv"
 
 # 3. set up tesseract
 pytesseract.pytesseract.tesseract_cmd = "C://Program Files//Tesseract-OCR//tesseract.exe"
