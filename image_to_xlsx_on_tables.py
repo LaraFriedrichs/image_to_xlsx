@@ -17,45 +17,37 @@ from functions import remove_vertical_lines
 
 # Changes
 
-# 1. set path to image file
-image_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/3.5_no_notes.png"
+# 1. chosse weather lines should be removed during the preprocessing or not
+remove_lines = True
 
-# 2. set path to your xlsx file for results
-output_excel_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/3.5_no_notes.xlsx"
-output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/3.5_no_notes.csv"
+# 2. set paths to your image and xlsx and csv file for results
+image_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/4.4.2_no_notes.png"
+output_excel_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/4.4.2_no_notes.xlsx"
+output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/4.4.2_no_notes.csv"
 
 # 3. set up tesseract
 pytesseract.pytesseract.tesseract_cmd = "C://Program Files//Tesseract-OCR//tesseract.exe"
 
-# 4. set x threshold for col seperation
-#threshold_x = 22
-# threshold_x=20
-# threshold_y=16
-#threshold_x=24
-#threshold_y=18
-threshold_x=30
+# 4. set x threshold for col and row seperation
+
+threshold_x=10
 threshold_y=10
-# threshold_x=20
-# threshold_y=15
 
-# 5. set thresh1 and thresh 2 
-thresh1=160
-thresh2=250
-# thresh1=470
-# thresh2=550
+# 5. set the thresholding type
+#threshtype = "OTSU"
+threshtype = "BINARY"
+#threshtype = "BINARY_manuel"
 
-# 6. set the thresholding type
-threshtype = cv2.THRESH_BINARY |cv2.THRESH_OTSU
-#threshtype = cv2.THRESH_OTSU
-#threshtype = cv2.THRESH_BINARY 
+# 6. set thresh1 and thresh 2 for threshtype = BINARY_manuel
+
+thresh1=170 # 0–255
+thresh2=255 # 0-255 255 recommended
 
 # 7. select tesseract engine and page segmentation mode 
 
-#custom_config = r'-l grc+eng -c preserve_interword_spaces=1x1 --oem 3 --psm 1' # psm 1,3,4,6,11,12 are good for tables
-#custom_config = r'-l grc+eng --oem 3 --psm 3' # psm 1,3,4,6,11,12 are good for tables
-#custom_config = r' --oem 1 --psm 3'
-#custom_config = r'--oem 3 --psm 6'
-custom_config = r'--oem 3 --psm 12 -c tessedit_char_whitelist="0123456789⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZαβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ+--_*" ""\t""\n"/=()[]{}\~.,:;<>"'
+# oem 1 or 3 and psm 1,3,4,6,11,12 are good for tables
+
+custom_config = r'--oem 3 --psm 11 -l grc+eng -c tessedit_char_whitelist="0123456789IVXLCDM¹²³⁴⁵⁶⁷⁸⁹⁰₀₁₂₃₄₅₆₇₈₉⁻abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ𝑎𝑏𝑐𝑑𝑒𝑓𝑔ℎ𝑖𝑗𝑘𝑙𝑚𝑛𝑜𝑝𝑞𝑟𝑠𝑡𝑢𝑣𝑤𝑥𝑦𝑧𝐴𝐵𝐶𝐷𝐸𝐹𝐺𝐻𝐼𝐽𝐾𝐿𝑀𝑁𝑂𝑃𝑄𝑅𝑆𝑇𝑈𝑉𝑊𝑋𝑌𝑍αβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ.--_/=()[]{}~.%,:;<>+*" -c tessedit_preserve_interword_spaces=1 -c preserve_interword_spaces=1x1'
 
 
 # 1. --oem (OCR Engine Mode)
@@ -88,12 +80,31 @@ custom_config = r'--oem 3 --psm 12 -c tessedit_char_whitelist="0123456789⁰¹²
 
 image = load_image(image_path)
 gray_image = grayscale_image(image)
-#dilated_image = dilate_image(gray_image)
-#blurred_image = blur_image(dilated_image)
-image_without_hlines = remove_horizontal_lines(gray_image)
-#eroded_image = erode_image(image_without_hlines)
-bin_image = binary_image(image_without_hlines,thresh1,thresh2,threshtype)
-#bin_image = binary_image(gray_image,thresh1,thresh2,threshtype)
+dilated_image = dilate_image(gray_image)
+blurred_image = blur_image(dilated_image)
+image_without_hlines = remove_horizontal_lines(blurred_image)
+image_without_vlines = remove_vertical_lines(image_without_hlines)
+eroded_image = erode_image(image_without_vlines)
+if remove_lines == True:
+    if threshtype == "BINARY":
+        bin_image = cv2.adaptiveThreshold(eroded_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    elif threshtype == "OTSU":
+        bin_image = binary_image(eroded_image,170,255,cv2.THRESH_OTSU)
+    elif threshtype == "Binary_manuel":    
+        bin_image = binary_image(eroded_image,thresh1, cv2.THRESH_BINARY)
+    else: 
+        print("Please choose the type of Threshold you want to use")
+elif remove_lines == False:
+    if threshtype == "BINARY":
+        bin_image = cv2.adaptiveThreshold(gray_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    elif threshtype == "OTSU":
+        bin_image = binary_image(gray_image,170,255,cv2.THRESH_OTSU)
+    elif threshtype == "Binary_manuel":    
+        bin_image = binary_image(gray_image,thresh1, cv2.THRESH_BINARY)
+    else: 
+        print("Please choose the type of Threshold you want to use")
+else: 
+    print("Please choose weather you want to remove the lines or not")
 
 # OCR 
 
@@ -149,7 +160,7 @@ for col_df in column_groups:
 # Baue DataFrame mit ausgerichteten Zeilen auf
 table_df = pd.DataFrame(aligned_columns).T.fillna("")
 #new_table_df = table_df.loc[df.shift() != table_df].dropna().reset_index(drop=True)
-new_table_df = table_df.loc[(table_df != table_df.shift()).any(axis=1)].reset_index(drop=True)
+new_table_df = table_df.loc[(table_df != table_df.shift()).any(axis=1)].reset_index(drop=True) # diese reihe ist verantwortlich dafür das thresh binary nicht mehr funktioniert
 
 print(new_table_df)
 new_table_df.to_excel(output_excel_path)

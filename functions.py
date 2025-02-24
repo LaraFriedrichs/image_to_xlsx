@@ -25,6 +25,7 @@ def display_image(image, title="Image"):
 def grayscale_image(image):  
     grayscaled_image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
     grayscaled_image = cv2.equalizeHist(grayscaled_image)
+    grayscaled_image = cv2.equalizeHist(grayscaled_image)
     return grayscaled_image
 
 # create a binary image
@@ -38,7 +39,7 @@ def binary_image(image,thresh1,thresh2,threshtype):
 # dilate image
 def dilate_image(image):
     image = cv2.bitwise_not(image)
-    kernal = np.ones((2,1),np.uint8)
+    kernal = np.ones((1,2),np.uint8)
     image = cv2.dilate(image, kernal, iterations = 1)
     image = cv2.bitwise_not(image)
     return image
@@ -46,7 +47,7 @@ def dilate_image(image):
 # erode image
 def erode_image(image):
     image = cv2.bitwise_not(image)
-    kernal = np.ones((2,1),np.uint8)
+    kernal = np.ones((2,2),np.uint8)
     image = cv2.erode(image, kernal, iterations = 1)
     image = cv2.bitwise_not(image)
     return image
@@ -61,7 +62,7 @@ def blur_image(image):
 def remove_horizontal_lines(image):
     image = cv2.bitwise_not(image)
     #horizontal_kernal = cv2.getStructuringElement(cv2.MORPH_RECT,(2, 1))
-    horizontal_kernal = cv2.getStructuringElement(cv2.MORPH_RECT, (np.array(image).shape[1]//30, 1))
+    horizontal_kernal = cv2.getStructuringElement(cv2.MORPH_RECT, (np.array(image).shape[1]//15, 1))
     horizontal_lines = cv2.morphologyEx(image, cv2.MORPH_OPEN, horizontal_kernal)
     no_horizontal_lines_image = cv2.subtract(image, horizontal_lines)
     no_horizontal_lines_image = cv2.bitwise_not(no_horizontal_lines_image)
@@ -71,7 +72,7 @@ def remove_horizontal_lines(image):
 def remove_vertical_lines(image):
     image = cv2.bitwise_not(image)
     #vertical_kernal = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 2))
-    vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, np.array(image).shape[1]//30))
+    vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, np.array(image).shape[1]//15))
     vertical_lines = cv2.morphologyEx(image, cv2.MORPH_OPEN, vertical_kernel)
     no_vertical_lines_image = cv2.subtract(image, vertical_lines)
     no_vertical_lines_image = cv2.bitwise_not(no_vertical_lines_image)
