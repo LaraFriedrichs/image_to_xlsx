@@ -9,9 +9,10 @@ from functions import grayscale_image
 from functions import dilate_image
 from functions import erode_image
 from functions import blur_image
-from functions import binary_image
 from functions import remove_horizontal_lines
 from functions import remove_vertical_lines
+from functions import invert_image
+from functions import binary_image
 
 ##############################################################################################################################################
 
@@ -40,14 +41,14 @@ threshtype = "BINARY_manuel"
 
 # 6. set thresh1 and thresh 2 for threshtype = BINARY_manuell
 
-thresh1=190 # 0–255
+thresh1=180 # 0–255
 thresh2=255 # 0-255 255 recommended
 
 # 7. select tesseract engine and page segmentation mode 
 
 # oem 1 or 3 and psm 1,3,4,6,11,12 are good for tables
 
-custom_config = r'--oem 3 --psm 11 -l grc+eng -c tessedit_char_whitelist="0123456789IVXLCDM¹²³⁴⁵⁶⁷⁸⁹⁰₀₁₂₃₄₅₆₇₈₉⁻abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ𝑎𝑏𝑐𝑑𝑒𝑓𝑔ℎ𝑖𝑗𝑘𝑙𝑚𝑛𝑜𝑝𝑞𝑟𝑠𝑡𝑢𝑣𝑤𝑥𝑦𝑧𝐴𝐵𝐶𝐷𝐸𝐹𝐺𝐻𝐼𝐽𝐾𝐿𝑀𝑁𝑂𝑃𝑄𝑅𝑆𝑇𝑈𝑉𝑊𝑋𝑌𝑍αβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ.--_/=()[]{}~.%,:;<>+*" -c tessedit_preserve_interword_spaces=1 -c preserve_interword_spaces=1x1'
+custom_config = r'--oem 1 --psm 11 -c tessedit_char_whitelist="0123456789IVXLCDM¹²³⁴⁵⁶⁷⁸⁹⁰₀₁₂₃₄₅₆₇₈₉⁻abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ𝑎𝑏𝑐𝑑𝑒𝑓𝑔ℎ𝑖𝑗𝑘𝑙𝑚𝑛𝑜𝑝𝑞𝑟𝑠𝑡𝑢𝑣𝑤𝑥𝑦𝑧𝐴𝐵𝐶𝐷𝐸𝐹𝐺𝐻𝐼𝐽𝐾𝐿𝑀𝑁𝑂𝑃𝑄𝑅𝑆𝑇𝑈𝑉𝑊𝑋𝑌𝑍αβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ.--_/=()[]{}~.%,:;<>+*" -c tessedit_preserve_interword_spaces=1 -c preserve_interword_spaces=1x1'
 
 
 # 1. --oem (OCR Engine Mode)
@@ -82,17 +83,22 @@ image = load_image(image_path)
 # Skalierungsfaktoren (z. B. 50% der Originalgröße)
 scale_x = 2
 scale_y = 2
-
+alpha = 1.4  # Erhöht den Kontrast
+beta = 2    # Erhöht die Helligkeit
 # Bild skalieren
+contrasted_image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
+gray_image = grayscale_image(contrasted_image)
+gray_image = cv2.resize(gray_image, None, fx=scale_x, fy=scale_y, interpolation=cv2.INTER_CUBIC)
+# Kontrast- und Helligkeitswerte setzen
 
-gray_image = grayscale_image(image)
-gray_image = cv2.resize(image, None, fx=scale_x, fy=scale_y, interpolation=cv2.INTER_CUBIC)
+
 
 dilated_image = dilate_image(gray_image)
 blurred_image = blur_image(dilated_image)
 image_without_hlines = remove_horizontal_lines(blurred_image)
 image_without_vlines = remove_vertical_lines(image_without_hlines)
 eroded_image = erode_image(image_without_vlines)
+eroded_image= invert_image(eroded_image)
 if remove_lines == True:
     if threshtype == "BINARY":
         bin_image = cv2.adaptiveThreshold(eroded_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)

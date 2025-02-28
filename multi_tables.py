@@ -51,19 +51,19 @@ threshold_y=30
 
 # 6. set the thresholding type
 #threshtype = "OTSU"
-threshtype = "BINARY"
-#threshtype = "BINARY_manuel"
+#threshtype = "BINARY"
+threshtype = "BINARY_manuel"
 
 # 7. set thresh1 and thresh 2 for threshtype = BINARY_manuel
 
-thresh1=200 # 0–255
+thresh1=190 # 0–255
 thresh2=255 # 0-255 255 recommended
 
 # 8. select tesseract engine and page segmentation mode 
 
 # oem 1 or 3 and psm 1,3,4,6,11,12 are good for tables
 
-custom_config = r'--oem 1 --psm 12 -l grc+eng -c tessedit_char_whitelist="0123456789IVXLCDM¹²³⁴⁵⁶⁷⁸⁹⁰₀₁₂₃₄₅₆₇₈₉⁻abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ𝑎𝑏𝑐𝑑𝑒𝑓𝑔ℎ𝑖𝑗𝑘𝑙𝑚𝑛𝑜𝑝𝑞𝑟𝑠𝑡𝑢𝑣𝑤𝑥𝑦𝑧𝐴𝐵𝐶𝐷𝐸𝐹𝐺𝐻𝐼𝐽𝐾𝐿𝑀𝑁𝑂𝑃𝑄𝑅𝑆𝑇𝑈𝑉𝑊𝑋𝑌𝑍αβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ.--_/=()[]{}~.%,:;<>+*" -c tessedit_preserve_interword_spaces=1 -c preserve_interword_spaces=1x1'
+custom_config = r'--oem 1 --psm 12 -c tessedit_char_whitelist="0123456789IVXLCDM¹²³⁴⁵⁶⁷⁸⁹⁰₀₁₂₃₄₅₆₇₈₉⁻abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ𝑎𝑏𝑐𝑑𝑒𝑓𝑔ℎ𝑖𝑗𝑘𝑙𝑚𝑛𝑜𝑝𝑞𝑟𝑠𝑡𝑢𝑣𝑤𝑥𝑦𝑧𝐴𝐵𝐶𝐷𝐸𝐹𝐺𝐻𝐼𝐽𝐾𝐿𝑀𝑁𝑂𝑃𝑄𝑅𝑆𝑇𝑈𝑉𝑊𝑋𝑌𝑍αβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ.--_/=()[]{}~.%,:;<>+*" -c tessedit_preserve_interword_spaces=1 -c preserve_interword_spaces=1x1'
 
 
 # 1. --oem (OCR Engine Mode)
@@ -101,7 +101,11 @@ for i in range(1,n_image+1):
 print(paths)
 for path in paths:
     image = load_image(path)
+    # Skalierungsfaktoren (z. B. 50% der Originalgröße)
+    scale_x = 2
+    scale_y = 2
     gray_image = grayscale_image(image)
+    #gray_image = cv2.resize(image, None, fx=scale_x, fy=scale_y, interpolation=cv2.INTER_CUBIC)
     dilated_image = dilate_image(gray_image)
     blurred_image = blur_image(dilated_image)
     image_without_hlines = remove_horizontal_lines(blurred_image)
