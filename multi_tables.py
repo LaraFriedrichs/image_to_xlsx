@@ -19,13 +19,13 @@ from functions import remove_vertical_lines
 
 # 0. set number of images
 
-n_image=4
+n_image=2
 
 # 1. set paths to image file
 image_paths=["","","","","","","","","",""]
-image_paths[0] = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/2.4.1_no_notes.png"
-image_paths[1] = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/2.4.2_no_notes.png"
-image_paths[2] = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/2.4.3_no_notes.png"
+image_paths[0] = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/2.4.3_no_notes.png"
+image_paths[1] = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/3.5.1.png"
+image_paths[2] = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/3.5.2.png"
 image_paths[3] = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/2.4.4_no_notes.png"
 image_paths[4] = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/4.4.2_no_notes.png"
 image_paths[5] = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/4.4.2_no_notes.png"
@@ -38,16 +38,16 @@ image_paths[9] = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/4.4.2_no_notes.
 remove_lines = True
 
 # 3. set path for your xlsx and csv file for results
-output_excel_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/2.4_no_notes.xlsx"
-output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/2.4_no_notes.csv"
+output_excel_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/3.5.xlsx"
+output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/3.5.csv"
 
 # 4. set up tesseract
 pytesseract.pytesseract.tesseract_cmd = "C://Program Files//Tesseract-OCR//tesseract.exe"
 
 # 5. set x threshold for col and row seperation
 
-threshold_x=10
-threshold_y=10
+threshold_x=40
+threshold_y=30
 
 # 6. set the thresholding type
 #threshtype = "OTSU"
@@ -56,14 +56,14 @@ threshtype = "BINARY"
 
 # 7. set thresh1 and thresh 2 for threshtype = BINARY_manuel
 
-thresh1=170 # 0–255
+thresh1=200 # 0–255
 thresh2=255 # 0-255 255 recommended
 
 # 8. select tesseract engine and page segmentation mode 
 
 # oem 1 or 3 and psm 1,3,4,6,11,12 are good for tables
 
-custom_config = r'--oem 3 --psm 11 -l grc+eng -c tessedit_char_whitelist="0123456789IVXLCDM¹²³⁴⁵⁶⁷⁸⁹⁰₀₁₂₃₄₅₆₇₈₉⁻abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ𝑎𝑏𝑐𝑑𝑒𝑓𝑔ℎ𝑖𝑗𝑘𝑙𝑚𝑛𝑜𝑝𝑞𝑟𝑠𝑡𝑢𝑣𝑤𝑥𝑦𝑧𝐴𝐵𝐶𝐷𝐸𝐹𝐺𝐻𝐼𝐽𝐾𝐿𝑀𝑁𝑂𝑃𝑄𝑅𝑆𝑇𝑈𝑉𝑊𝑋𝑌𝑍αβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ.--_/=()[]{}~.%,:;<>+*" -c tessedit_preserve_interword_spaces=1 -c preserve_interword_spaces=1x1'
+custom_config = r'--oem 1 --psm 12 -l grc+eng -c tessedit_char_whitelist="0123456789IVXLCDM¹²³⁴⁵⁶⁷⁸⁹⁰₀₁₂₃₄₅₆₇₈₉⁻abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ𝑎𝑏𝑐𝑑𝑒𝑓𝑔ℎ𝑖𝑗𝑘𝑙𝑚𝑛𝑜𝑝𝑞𝑟𝑠𝑡𝑢𝑣𝑤𝑥𝑦𝑧𝐴𝐵𝐶𝐷𝐸𝐹𝐺𝐻𝐼𝐽𝐾𝐿𝑀𝑁𝑂𝑃𝑄𝑅𝑆𝑇𝑈𝑉𝑊𝑋𝑌𝑍αβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ.--_/=()[]{}~.%,:;<>+*" -c tessedit_preserve_interword_spaces=1 -c preserve_interword_spaces=1x1'
 
 
 # 1. --oem (OCR Engine Mode)
@@ -95,13 +95,12 @@ custom_config = r'--oem 3 --psm 11 -l grc+eng -c tessedit_char_whitelist="012345
 # image preprocessing
 paths =[]
 dfs=[]
-for i in range(0,n_image):
+for i in range(1,n_image+1):
     image_path = image_paths[i]
     paths.append(image_path)
-
+print(paths)
 for path in paths:
-    
-    image = load_image(image_path)
+    image = load_image(path)
     gray_image = grayscale_image(image)
     dilated_image = dilate_image(gray_image)
     blurred_image = blur_image(dilated_image)
@@ -113,8 +112,8 @@ for path in paths:
             bin_image = cv2.adaptiveThreshold(eroded_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
         elif threshtype == "OTSU":
             bin_image = binary_image(eroded_image,170,255,cv2.THRESH_OTSU)
-        elif threshtype == "Binary_manuel":    
-            bin_image = binary_image(eroded_image,thresh1, cv2.THRESH_BINARY)
+        elif threshtype == "BINARY_manuel":    
+            bin_image = binary_image(eroded_image,thresh1,thresh2, cv2.THRESH_BINARY)
         else: 
             print("Please choose the type of Threshold you want to use")
     elif remove_lines == False:
@@ -122,8 +121,8 @@ for path in paths:
             bin_image = cv2.adaptiveThreshold(gray_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
         elif threshtype == "OTSU":
             bin_image = binary_image(gray_image,170,255,cv2.THRESH_OTSU)
-        elif threshtype == "Binary_manuel":    
-            bin_image = binary_image(gray_image,thresh1, cv2.THRESH_BINARY)
+        elif threshtype == "BINARY_manuel":    
+            bin_image = binary_image(gray_image,thresh1,thresh2, cv2.THRESH_BINARY)
         else: 
             print("Please choose the type of Threshold you want to use")
     else: 

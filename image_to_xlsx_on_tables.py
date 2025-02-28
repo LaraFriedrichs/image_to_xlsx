@@ -21,26 +21,26 @@ from functions import remove_vertical_lines
 remove_lines = True
 
 # 2. set paths to your image and xlsx and csv file for results
-image_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/4.4.2_no_notes.png"
-output_excel_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/4.4.2_no_notes.xlsx"
-output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/results/4.4.2_no_notes.csv"
+image_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/images/3.5_no_notes.png"
+output_excel_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/new_results/3.5_no_notes.xlsx"
+output_csv_path = "C:/Users/49176/OneDrive/Desktop/OCR/OCR/new_results/3.5_no_notes.csv"
 
 # 3. set up tesseract
 pytesseract.pytesseract.tesseract_cmd = "C://Program Files//Tesseract-OCR//tesseract.exe"
 
 # 4. set x threshold for col and row seperation
 
-threshold_x=10
-threshold_y=10
+threshold_x=40
+threshold_y=30
 
 # 5. set the thresholding type
 #threshtype = "OTSU"
-threshtype = "BINARY"
-#threshtype = "BINARY_manuel"
+#threshtype = "BINARY"
+threshtype = "BINARY_manuel"
 
-# 6. set thresh1 and thresh 2 for threshtype = BINARY_manuel
+# 6. set thresh1 and thresh 2 for threshtype = BINARY_manuell
 
-thresh1=170 # 0–255
+thresh1=190 # 0–255
 thresh2=255 # 0-255 255 recommended
 
 # 7. select tesseract engine and page segmentation mode 
@@ -79,7 +79,15 @@ custom_config = r'--oem 3 --psm 11 -l grc+eng -c tessedit_char_whitelist="012345
 # image preprocessing
 
 image = load_image(image_path)
+# Skalierungsfaktoren (z. B. 50% der Originalgröße)
+scale_x = 2
+scale_y = 2
+
+# Bild skalieren
+
 gray_image = grayscale_image(image)
+gray_image = cv2.resize(image, None, fx=scale_x, fy=scale_y, interpolation=cv2.INTER_CUBIC)
+
 dilated_image = dilate_image(gray_image)
 blurred_image = blur_image(dilated_image)
 image_without_hlines = remove_horizontal_lines(blurred_image)
@@ -90,8 +98,8 @@ if remove_lines == True:
         bin_image = cv2.adaptiveThreshold(eroded_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     elif threshtype == "OTSU":
         bin_image = binary_image(eroded_image,170,255,cv2.THRESH_OTSU)
-    elif threshtype == "Binary_manuel":    
-        bin_image = binary_image(eroded_image,thresh1, cv2.THRESH_BINARY)
+    elif threshtype == "BINARY_manuel":    
+        bin_image = binary_image(eroded_image,thresh1,thresh2, cv2.THRESH_BINARY)
     else: 
         print("Please choose the type of Threshold you want to use")
 elif remove_lines == False:
@@ -99,8 +107,8 @@ elif remove_lines == False:
         bin_image = cv2.adaptiveThreshold(gray_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     elif threshtype == "OTSU":
         bin_image = binary_image(gray_image,170,255,cv2.THRESH_OTSU)
-    elif threshtype == "Binary_manuel":    
-        bin_image = binary_image(gray_image,thresh1, cv2.THRESH_BINARY)
+    elif threshtype == "BINARY_manuel":    
+        bin_image = binary_image(gray_image,thresh1,thresh2, cv2.THRESH_BINARY)
     else: 
         print("Please choose the type of Threshold you want to use")
 else: 
